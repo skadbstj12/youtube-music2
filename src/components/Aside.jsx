@@ -1,144 +1,158 @@
-import React, { useContext, useRef, useState, useEffect } from 'react';
-import { IoMusicalNotes, IoPlaySkipForward, IoPlaySkipBack, IoPlay, IoPause, IoRepeat, IoShuffleOutline } from 'react-icons/io5';
+import React, { useContext, useEffect, useRef } from 'react';
 import { MusicPlayerContext } from '../context/MusicPlayerProvider';
+import { IoMusicalNotes, IoPlaySkipForward, IoPlaySkipBack, IoPlay, IoPause, IoRepeat, IoShuffleOutline } from 'react-icons/io5';
 import ReactPlayer from 'react-player';
 
 const Aside = () => {
-    const { musicData } = useContext(MusicPlayerContext);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [played, setPlayed] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const playerRef = useRef(null);
-    const currentTrackRef = useRef(null);
+    const {
+        musicData,
+        currentTrackIndex,
+        isPlaying,
+        played,
+        duration,
+        playTrack,
+        pauseTrack,
+        nextTrack,
+        prevTrack,
+        updatePlayed,
+        updateDuration,
+        toggleShuffle,
+        isShuffling,
+        toggleRepeat,
+        isRepeating,
+        handleTrackEnd
+    } = useContext(MusicPlayerContext);
 
-    const currentTrack = musicData.length > 0 ? musicData[currentIndex] : null;
+    const currentTrackRef = useRef(null);
+    const playerRef = useRef(null);
 
     useEffect(() => {
         if (currentTrackRef.current) {
-            currentTrackRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            currentTrackRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-    }, [currentIndex]);
+    }, [currentTrackIndex]);
 
-    const playTrack = (index) => {
-        setCurrentIndex(index);
-        setIsPlaying(true);
-        setPlayed(0);
-    };
+    if (musicData.length === 0) {
+        return <aside id="aside">Loading...</aside>;
+    }
 
-    const pauseTrack = () => {
-        setIsPlaying(false);
+    const currentTrack = musicData[currentTrackIndex];
+
+    const handleProgress = (state) => {
+        updatePlayed(state.played);
     };
 
     const handleDuration = (duration) => {
-        setDuration(duration);
+        updateDuration(duration);
     };
 
-    const handleSeekChange = (e) => {
-        const newPlayed = parseFloat(e.target.value);
-        setPlayed(newPlayed);
-        playerRef.current.seekTo(newPlayed);
+    const handleSeekChange = (event) => {
+        updatePlayed(parseFloat(event.target.value));
     };
 
-    const handleProgress = (state) => {
-        setPlayed(state.played);
-    };
-
-    const handleNext = () => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % musicData.length);
-        setPlayed(0);
-    };
-
-    const handlePrev = () => {
-        setCurrentIndex((prevIndex) => (prevIndex - 1 + musicData.length) % musicData.length);
-        setPlayed(0);
+    const handleSeekMouseUp = (event) => {
+        if (playerRef.current) {
+            playerRef.current.seekTo(parseFloat(event.target.value));
+        }
     };
 
     const formatTime = (seconds) => {
-        if (!seconds) return '0:00';
         const minutes = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
+    const handleTrackEndModified = () => {
+        if (isRepeating) {
+            playerRef.current.seekTo(0);
+            playTrack(currentTrackIndex);
+        } else {
+            handleTrackEnd();
+        }
+    };
+
     return (
-        <aside id='aside'>
-            <div className='play-now'>
-                <h2><IoMusicalNotes /> Now Playing</h2>
-                <div className='thumb'>
-                    <div className='img'>
+        <aside id="aside">
+            <div className="play-now">
+                <h2>
+                    <IoMusicalNotes /> Now Playing
+                </h2>
+                <div className="thumb">
+                    <div className="img">
                         {currentTrack && (
                             <ReactPlayer
                                 ref={playerRef}
                                 url={`https://www.youtube.com/watch?v=${currentTrack.videoID}`}
-                                playing={isPlaying}
                                 controls={false}
                                 width="100%"
                                 height="100%"
-                                onDuration={handleDuration}
+                                playing={isPlaying}
+                                onEnded={handleTrackEndModified}
                                 onProgress={handleProgress}
+                                onDuration={handleDuration}
                             />
                         )}
                     </div>
-                    <span className='title'>{currentTrack?.title || '선택된 노래가 없습니다.'}</span>
-                    <span className='artist'>{currentTrack?.artist || '😝 노래 클릭'}</span>
+                    {currentTrack && (
+                        <>
+                            <span className="title">{currentTrack.title}</span>
+                            <span className="artist">{currentTrack.artist}</span>
+                        </>
+                    )}
                 </div>
-                <div className='progress'>
-                    <div className='progress-bar'>
+
+                <div className="progress">
+                    <div className="progress-bar">
                         <input
-                            type='range'
-                            min='0'
-                            max='1'
-                            step='0.01'
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
                             value={played}
                             onChange={handleSeekChange}
-                            style={{ backgroundSize: `${played * 100}% 100%` }}
+                            onMouseUp={handleSeekMouseUp}
                         />
                     </div>
-                    <div className='times'>
-                        <span className='current'>{formatTime(played * duration)}</span>
-                        <span className='total'>{formatTime(duration)}</span>
+                    <div className="times">
+                        <span className="current-time">{formatTime(played * duration)}</span>
+                        <span className="total-time">{formatTime(duration)}</span>
                     </div>
-                </div>
-                <div className='controls'>
-                    <span className='shuffle'><IoShuffleOutline /></span>
-                    <span className='prev' onClick={handlePrev}><IoPlaySkipBack /></span>
-                    {isPlaying ? (
-                        <span className='play bg' onClick={pauseTrack}><IoPause /></span>
-                    ) : (
-                        <span className='play bg' onClick={() => setIsPlaying(true)}><IoPlay /></span>
-                    )}
-                    <span className='next' onClick={handleNext}><IoPlaySkipForward /></span>
-                    <span className='repeat'><IoRepeat /></span>
-                </div>
-                <div className='volume'>
-                    <input type='range' min='0' max='100' step='1' />
+                    <div className="controls">
+                        <span className={`shuffle ${isShuffling ? 'active' : ''}`} onClick={toggleShuffle}>
+                            <IoShuffleOutline />
+                        </span>
+                        <span className="prev" onClick={prevTrack}>
+                            <IoPlaySkipBack />
+                        </span>
+                        <span className="play bg" onClick={isPlaying ? pauseTrack : () => playTrack(currentTrackIndex)}>
+                            {isPlaying ? <IoPause /> : <IoPlay />}
+                        </span>
+                        <span className="next" onClick={nextTrack}>
+                            <IoPlaySkipForward />
+                        </span>
+                        <span className={`repeat ${isRepeating ? 'active' : ''}`} onClick={toggleRepeat}>
+                            <IoRepeat />
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div className='play-list'>
+            <div className="play-list">
                 <h3><IoMusicalNotes /> Play list</h3>
-                <ul className='scrollable-list'>
+                <ul>
                     {musicData.map((track, index) => (
                         <li
                             key={index}
+                            ref={index === currentTrackIndex ? currentTrackRef : null}
                             onClick={() => playTrack(index)}
-                            className={index === currentIndex ? 'current-track' : ''}
-                            ref={index === currentIndex ? currentTrackRef : null}
+                            className={index === currentTrackIndex ? 'current-track' : ''}
                         >
-                            <span className='img' style={{ backgroundImage: `url(${track.imageURL})` }}></span>
-                            <span className='title'>
-                                {track.title}
-
-                                <span>{index === currentIndex && isPlaying && <IoPause onClick={pauseTrack} className='play-icon' />}
-                                    {index === currentIndex && !isPlaying && <IoPlay onClick={() => setIsPlaying(true)} className='play-icon' />}</span>
-                            </span>
-
+                            <span className="img" style={{ backgroundImage: `url(${track.imageURL})` }}></span>
+                            <span className="title">{track.title}</span>
                         </li>
                     ))}
                 </ul>
             </div>
-
         </aside>
     );
 };

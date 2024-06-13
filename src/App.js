@@ -10,9 +10,11 @@ import Home from "./pages/Home";
 import Mymusic from "./pages/Mymusic";
 import ChartList from "./pages/ChartList";
 import PlayList from "./pages/PlayList";
+import MusicPlayerProvider from "./context/MusicPlayerProvider";
 
 const App = () => {
     return (
+      <MusicPlayerProvider>
         <BrowserRouter>
             <Header />
             <Main>
@@ -26,6 +28,7 @@ const App = () => {
             </Main>
             <Aside />
         </BrowserRouter>
+       </MusicPlayerProvider>
     );
 };
 
