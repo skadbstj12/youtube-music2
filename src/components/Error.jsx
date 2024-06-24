@@ -8,4 +8,4 @@ const Error = ({ message }) => (
     </div>
 );
 
-export default Error;
+export default Error
