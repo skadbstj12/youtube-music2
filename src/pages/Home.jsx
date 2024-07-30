@@ -1,36 +1,216 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import useFetchData from '../hook/useFetchData';
+import React, { useEffect, useState, useContext } from 'react';
+import axios from 'axios';
+import { MdOutlinePlayCircleFilled, MdFormatListBulletedAdd, MdHive } from 'react-icons/md';
+import { MusicPlayerContext } from '../context/MusicPlayerProvider';
+import { toast } from 'react-toastify';
 
-import Loading from '../components/Loading';
-import Error from '../components/Error';
-import Chart from '../components/Chart';
+const Home = () => {
+  const [videos, setVideos] = useState([]);
+  const [recommendedVideos, setRecommendedVideos] = useState([]);
 
-const ChartList = () => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
+  const { addTrackToList, addTrackToEnd, playTrack } = useContext(MusicPlayerContext);
 
-  const { id } = useParams();
-  const [selectedDate, setSelectedDate] = useState(yesterday);
+  useEffect(() => {
+    const fetchLatestMusicVideos = async () => {
+      localStorage.removeItem('latestMusicVideos');
+      localStorage.removeItem('recommendedVideos');
 
-  const formattedDate = selectedDate.toISOString().split('T')[0];
-  const url = `https://raw.githubusercontent.com/webs9919/music-best/main/${id}/${id}100_${formattedDate}.json`;
-  const { data, loading, error } = useFetchData(url);
+      const cachedVideos = localStorage.getItem('latestMusicVideos');
+      if (cachedVideos) {
+        setVideos(JSON.parse(cachedVideos));
+      } else {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        const formattedDate = oneMonthAgo.toISOString();
 
-  if (loading) return <Loading loading={loading} />;
-  if (error) return <Error message={error.message} />;
+        try {
+          const response = await axios.get(
+            `https://www.googleapis.com/youtube/v3/search`,
+            {
+              params: {
+                part: 'snippet',
+                maxResults: 5,
+                q: '클럽노래',
+                type: 'video',
+                key: process.env.REACT_APP_YOUTUBE_API_KEY,
+                publishedAfter: formattedDate,
+              },
+            }
+          );
+
+          const videoIds = response.data.items.map(item => item.id.videoId);
+          console.log('Fetched video IDs:', videoIds);
+
+          const videoDetailsResponse = await axios.get(
+            `https://www.googleapis.com/youtube/v3/videos`,
+            {
+              params: {
+                part: 'snippet,contentDetails,status',
+                id: videoIds.join(','),
+                key: process.env.REACT_APP_YOUTUBE_API_KEY,
+              },
+            }
+          );
+
+          console.log('Video Details Response:', videoDetailsResponse.data.items);
+
+          const embeddableVideos = videoDetailsResponse.data.items.filter(video => video.status.embeddable);
+
+          setVideos(embeddableVideos);
+          localStorage.setItem('latestMusicVideos', JSON.stringify(embeddableVideos));
+          console.log('Embeddable Videos:', embeddableVideos);
+
+        } catch (error) {
+          console.error('Error fetching latest music videos:', error);
+        }
+      }
+    };
+
+    const fetchRecommendedVideos = async () => {
+      const cachedRecommendedVideos = localStorage.getItem('recommendedVideos');
+      if (cachedRecommendedVideos) {
+        setRecommendedVideos(JSON.parse(cachedRecommendedVideos));
+      } else {
+        try {
+          const response = await axios.get(
+            `https://www.googleapis.com/youtube/v3/search`,
+            {
+              params: {
+                part: 'snippet',
+                maxResults: 5,
+                q: 'J-POP',
+                type: 'video',
+                key: process.env.REACT_APP_YOUTUBE_API_KEY,
+              },
+            }
+          );
+
+          const videoIds = response.data.items.map(item => item.id.videoId);
+          console.log('Fetched video IDs:', videoIds);
+
+          const videoDetailsResponse = await axios.get(
+            `https://www.googleapis.com/youtube/v3/videos`,
+            {
+              params: {
+                part: 'snippet,contentDetails,status',
+                id: videoIds.join(','),
+                key: process.env.REACT_APP_YOUTUBE_API_KEY,
+              },
+            }
+          );
+
+          console.log('Video Details Response:', videoDetailsResponse.data.items);
+
+          const embeddableVideos = videoDetailsResponse.data.items.filter(video => video.status.embeddable);
+
+          setRecommendedVideos(embeddableVideos);
+          localStorage.setItem('recommendedVideos', JSON.stringify(embeddableVideos));
+          console.log('Embeddable Videos:', embeddableVideos);
+
+        } catch (error) {
+          console.error('Error fetching recommended videos:', error);
+        }
+      }
+    };
+
+    fetchLatestMusicVideos();
+    fetchRecommendedVideos();
+  }, []);
+
+  const handlePlayNow = (video) => {
+    const newTrack = {
+      title: video.snippet.title,
+      videoID: video.id,
+      imageURL: video.snippet.thumbnails.default.url,
+      artist: video.snippet.channelTitle,
+      rank: 1
+    };
+    addTrackToList(newTrack);
+    playTrack(0);
+    toast.success('현재 음악을 재생시켰습니다.');
+  };
+
+  const handleAddToList = (video) => {
+    const newTrack = {
+      title: video.snippet.title,
+      videoID: video.id,
+      imageURL: video.snippet.thumbnails.default.url,
+      artist: video.snippet.channelTitle,
+      rank: 1
+    };
+    addTrackToEnd(newTrack);
+    toast.success('리스트에 추가했습니다.');
+  };
+
+  const handleAddToPlaylistClick = (video) => {
+    const newTrack = {
+      title: video.snippet.title,
+      videoID: video.id,
+      imageURL: video.snippet.thumbnails.default.url,
+      artist: video.snippet.channelTitle,
+      rank: 1
+    };
+    const playlistId = 'myPlaylist';
+    const playlist = JSON.parse(localStorage.getItem(playlistId)) || { items: [] };
+    playlist.items.push(newTrack);
+    localStorage.setItem(playlistId, JSON.stringify(playlist));
+    toast.success('나만의 리스트에 추가했습니다.');
+  };
 
   return (
-    <Chart
-      title={`😜 ${id} 챠트 Top100`}
-      data={data}
-      showCalendar={true}
-      selectedDate={selectedDate}
-      onDateChange={setSelectedDate}
-      minDate={new Date('2024-05-01')}
-      maxDate={yesterday}
-    />
+    <div className='main__info'>
+      <h1>클럽노래</h1>
+      <div className="video_list">
+        {videos.map((video) => (
+          <div key={video.id} className="video-item">
+            <img
+              src={video.snippet.thumbnails.medium.url}
+              alt={video.snippet.title}
+              onClick={() => handlePlayNow(video)}
+            />
+            <h3>{video.snippet.title}</h3>
+            <p>{video.snippet.channelTitle}</p>
+            <div className="video-actions">
+              <span onClick={() => handlePlayNow(video)}>
+                <MdOutlinePlayCircleFilled /><span className='ir'>노래듣기</span>
+              </span>
+              <span onClick={() => handleAddToList(video)}>
+                <MdFormatListBulletedAdd /><span className='ir'>리스트 추가하기</span>
+              </span>
+              <span onClick={() => handleAddToPlaylistClick(video)}>
+                <MdHive /><span className='ir'>나의 리스트에 추가하기</span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h2>J-POP</h2>
+      <div className="video_list">
+        {recommendedVideos.map((video) => (
+          <div key={video.id} className="video-item">
+            <img
+              src={video.snippet.thumbnails.medium.url}
+              alt={video.snippet.title}
+              onClick={() => handlePlayNow(video)}
+            />
+            <h3>{video.snippet.title}</h3>
+            <p>{video.snippet.channelTitle}</p>
+            <div className="video-actions">
+              <span onClick={() => handlePlayNow(video)}>
+                <MdOutlinePlayCircleFilled /><span className='ir'>노래듣기</span>
+              </span>
+              <span onClick={() => handleAddToList(video)}>
+                <MdFormatListBulletedAdd /><span className='ir'>리스트 추가하기</span>
+              </span>
+              <span onClick={() => handleAddToPlaylistClick(video)}>
+                <MdHive /><span className='ir'>나의 리스트에 추가하기</span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
-export default ChartList;
+export default Home;
