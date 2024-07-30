@@ -30,7 +30,7 @@ const Home = () => {
               params: {
                 part: 'snippet',
                 maxResults: 5,
-                q: '클럽노래',
+                q: '발라드',
                 type: 'video',
                 key: process.env.REACT_APP_YOUTUBE_API_KEY,
                 publishedAfter: formattedDate,
@@ -78,7 +78,7 @@ const Home = () => {
               params: {
                 part: 'snippet',
                 maxResults: 5,
-                q: 'J-POP',
+                q: 'K-POP',
                 type: 'video',
                 key: process.env.REACT_APP_YOUTUBE_API_KEY,
               },
@@ -159,7 +159,7 @@ const Home = () => {
 
   return (
     <div className='main__info'>
-      <h1>클럽노래</h1>
+      <h1>발라드</h1>
       <div className="video_list">
         {videos.map((video) => (
           <div key={video.id} className="video-item">
@@ -184,7 +184,7 @@ const Home = () => {
           </div>
         ))}
       </div>
-      <h2>J-POP</h2>
+      <h2>K-POP</h2>
       <div className="video_list">
         {recommendedVideos.map((video) => (
           <div key={video.id} className="video-item">
